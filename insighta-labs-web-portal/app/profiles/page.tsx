@@ -1,12 +1,23 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import Link from "next/link";
+import { getAuthHeaders, isLoggedIn } from "../lib/auth";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+interface Profile {
+  id: string;
+  name: string;
+  gender: string;
+  age: number;
+  age_group: string;
+  country_name: string;
+  country_id: string;
+}
 
 export default function Profiles() {
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -17,35 +28,47 @@ export default function Profiles() {
   const [sortBy, setSortBy] = useState("created_at");
   const [order, setOrder] = useState("desc");
 
-  const fetchProfiles = async (p = 1) => {
-    setLoading(true);
-    try {
-      const params: any = { page: p, limit: 10, sort_by: sortBy, order };
-      if (gender) params.gender = gender;
-      if (country) params.country_id = country.toUpperCase();
-      if (ageGroup) params.age_group = ageGroup;
+  const fetchProfiles = useCallback(
+    async (p = 1) => {
+      if (!isLoggedIn()) {
+        window.location.href = "/";
+        return;
+      }
+      setLoading(true);
+      try {
+        const params: Record<string, string | number> = {
+          page: p,
+          limit: 10,
+          sort_by: sortBy,
+          order,
+        };
+        if (gender) params.gender = gender;
+        if (country) params.country_id = country.toUpperCase();
+        if (ageGroup) params.age_group = ageGroup;
 
-      const res = await axios.get(`${API}/profiles`, {
-        params,
-        withCredentials: true,
-        headers: { "X-API-Version": "1" },
-      });
+        const res = await axios.get(`${API}/profiles`, {
+          params,
+          headers: getAuthHeaders(),
+        });
 
-      setProfiles(res.data.data);
-      setTotal(res.data.total);
-      setTotalPages(res.data.total_pages);
-      setPage(p);
-    } catch {
-      window.location.href = "/";
-    }
-    setLoading(false);
-  };
+        setProfiles(res.data.data);
+        setTotal(res.data.total);
+        setTotalPages(res.data.total_pages);
+        setPage(p);
+      } catch {
+        window.location.href = "/";
+      } finally {
+        setLoading(false);
+      }
+    },
+    [gender, country, ageGroup, sortBy, order],
+  );
 
   useEffect(() => {
-    fetchProfiles();
-  }, []);
+    fetchProfiles(1);
+  }, [fetchProfiles]);
 
-  const inputStyle = {
+  const inputStyle: React.CSSProperties = {
     background: "#1e1e3a",
     border: "1px solid #2a2a4a",
     color: "white",
@@ -57,7 +80,6 @@ export default function Profiles() {
 
   return (
     <div style={{ minHeight: "100vh", padding: "24px" }}>
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -75,7 +97,6 @@ export default function Profiles() {
         </Link>
       </div>
 
-      {/* Filters */}
       <div
         style={{
           background: "#1e1e3a",
@@ -84,7 +105,7 @@ export default function Profiles() {
           border: "1px solid #2a2a4a",
           marginBottom: "24px",
           display: "flex",
-          flexWrap: "wrap" as const,
+          flexWrap: "wrap",
           gap: "12px",
           alignItems: "center",
         }}
@@ -160,7 +181,6 @@ export default function Profiles() {
             setAgeGroup("");
             setSortBy("created_at");
             setOrder("desc");
-            setTimeout(() => fetchProfiles(1), 100);
           }}
           style={{
             background: "transparent",
@@ -176,7 +196,6 @@ export default function Profiles() {
         </button>
       </div>
 
-      {/* Table */}
       {loading ? (
         <p style={{ color: "#8888aa", textAlign: "center", padding: "40px" }}>
           Loading...
@@ -221,7 +240,9 @@ export default function Profiles() {
               {profiles.map((p, i) => (
                 <tr
                   key={p.id}
-                  style={{ background: i % 2 === 0 ? "#1e1e3a" : "#1a1a36" }}
+                  style={{
+                    background: i % 2 === 0 ? "#1e1e3a" : "#1a1a36",
+                  }}
                 >
                   <td
                     style={{
@@ -277,7 +298,6 @@ export default function Profiles() {
         </div>
       )}
 
-      {/* Pagination */}
       <div
         style={{
           display: "flex",

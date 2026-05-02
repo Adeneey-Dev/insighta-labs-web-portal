@@ -2,12 +2,22 @@
 import { useState } from "react";
 import axios from "axios";
 import Link from "next/link";
+import { getAuthHeaders, isLoggedIn } from "../lib/auth";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+interface Profile {
+  id: string;
+  name: string;
+  gender: string;
+  age: number;
+  age_group: string;
+  country_name: string;
+}
 
 export default function Search() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<Profile[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -19,11 +29,14 @@ export default function Search() {
     "adult males from kenya",
     "teenagers from ghana",
     "seniors from ethiopia",
-    "children from tanzania",
   ];
 
   const search = async (q?: string) => {
-    const searchQuery = q || query;
+    if (!isLoggedIn()) {
+      window.location.href = "/";
+      return;
+    }
+    const searchQuery = q ?? query;
     if (!searchQuery.trim()) return;
     setLoading(true);
     setError("");
@@ -31,16 +44,20 @@ export default function Search() {
     try {
       const res = await axios.get(`${API}/profiles/search`, {
         params: { q: searchQuery },
-        withCredentials: true,
-        headers: { "X-API-Version": "1" },
+        headers: getAuthHeaders(),
       });
-      setResults(res.data.data || []);
-      setTotal(res.data.total || 0);
-    } catch (e: any) {
-      setError(e.response?.data?.message || "Search failed");
+      setResults(res.data.data ?? []);
+      setTotal(res.data.total ?? 0);
+    } catch (e) {
+      if (axios.isAxiosError(e)) {
+        setError(e.response?.data?.message ?? "Search failed");
+      } else {
+        setError("Search failed");
+      }
       setResults([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -73,14 +90,7 @@ export default function Search() {
         </Link>
       </div>
 
-      {/* Search box */}
-      <div
-        style={{
-          display: "flex",
-          gap: "12px",
-          marginBottom: "16px",
-        }}
-      >
+      <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -114,12 +124,11 @@ export default function Search() {
         </button>
       </div>
 
-      {/* Example queries */}
       <div style={{ marginBottom: "32px" }}>
         <p style={{ color: "#8888aa", fontSize: "13px", marginBottom: "8px" }}>
           Try these examples:
         </p>
-        <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "8px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
           {examples.map((ex) => (
             <button
               key={ex}
@@ -143,7 +152,6 @@ export default function Search() {
         </div>
       </div>
 
-      {/* Error */}
       {error && (
         <div
           style={{
@@ -159,14 +167,12 @@ export default function Search() {
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
         <p style={{ color: "#8888aa", textAlign: "center", padding: "40px" }}>
           Searching...
         </p>
       )}
 
-      {/* Results */}
       {!loading && searched && results.length === 0 && !error && (
         <p style={{ color: "#8888aa", textAlign: "center", padding: "40px" }}>
           No results found
@@ -176,7 +182,11 @@ export default function Search() {
       {!loading && results.length > 0 && (
         <>
           <p
-            style={{ color: "#8888aa", fontSize: "14px", marginBottom: "16px" }}
+            style={{
+              color: "#8888aa",
+              fontSize: "14px",
+              marginBottom: "16px",
+            }}
           >
             Found {total} results
           </p>
@@ -214,7 +224,9 @@ export default function Search() {
                 {results.map((p, i) => (
                   <tr
                     key={p.id}
-                    style={{ background: i % 2 === 0 ? "#1e1e3a" : "#1a1a36" }}
+                    style={{
+                      background: i % 2 === 0 ? "#1e1e3a" : "#1a1a36",
+                    }}
                   >
                     <td
                       style={{

@@ -2,22 +2,40 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Link from "next/link";
+import { getAuthHeaders, isLoggedIn } from "../lib/auth";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  avatar_url: string;
+  role: string;
+}
 
 export default function Account() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    axios
-      .get(`${API}/auth/me`, { withCredentials: true })
-      .then((r) => setUser(r.data.data))
-      .catch(() => {
+    const load = async () => {
+      if (!isLoggedIn()) {
         window.location.href = "/";
-      });
+        return;
+      }
+      try {
+        const res = await axios.get(`${API}/auth/me`, {
+          headers: getAuthHeaders(),
+        });
+        setUser(res.data.data);
+      } catch {
+        window.location.href = "/";
+      }
+    };
+    load();
   }, []);
 
-  if (!user)
+  if (!user) {
     return (
       <div
         style={{
@@ -30,6 +48,7 @@ export default function Account() {
         <p style={{ color: "#8888aa" }}>Loading...</p>
       </div>
     );
+  }
 
   return (
     <div
@@ -62,7 +81,6 @@ export default function Account() {
           padding: "32px",
         }}
       >
-        {/* Avatar */}
         <div
           style={{
             display: "flex",
@@ -118,14 +136,7 @@ export default function Account() {
           </div>
         </div>
 
-        {/* Details */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column" as const,
-            gap: "16px",
-          }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {[
             { label: "User ID", value: user.id },
             { label: "Username", value: user.username },
@@ -155,8 +166,8 @@ export default function Account() {
                 style={{
                   fontSize: "14px",
                   maxWidth: "60%",
-                  textAlign: "right" as const,
-                  wordBreak: "break-all" as const,
+                  textAlign: "right",
+                  wordBreak: "break-all",
                 }}
               >
                 {item.value}

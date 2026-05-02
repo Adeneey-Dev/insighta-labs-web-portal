@@ -2,37 +2,101 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  avatar_url: string;
+  role: string;
+}
+
+interface Stats {
+  total: number;
+}
+
+// Token storage helpers
+function saveTokens(access: string, refresh: string) {
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem("access_token", access);
+    sessionStorage.setItem("refresh_token", refresh);
+  }
+}
+
+function getAccessToken(): string {
+  if (typeof window !== "undefined") {
+    return sessionStorage.getItem("access_token") || "";
+  }
+  return "";
+}
+
+export function getAuthHeaders() {
+  const token = getAccessToken();
+  return token
+    ? { Authorization: `Bearer ${token}`, "X-API-Version": "1" }
+    : { "X-API-Version": "1" };
+}
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null);
-  const [stats, setStats] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    axios
-      .get(`${API}/auth/me`, { withCredentials: true })
-      .then((r) => {
-        setUser(r.data.data);
-        return axios.get(`${API}/profiles?limit=1`, {
-          withCredentials: true,
-          headers: { "X-API-Version": "1" },
+    const load = async () => {
+      try {
+        // Check if tokens came from OAuth redirect
+        const tokensParam = searchParams.get("tokens");
+        if (tokensParam) {
+          const parsed = JSON.parse(decodeURIComponent(tokensParam));
+          saveTokens(parsed.access_token, parsed.refresh_token);
+          // Clean URL
+          window.history.replaceState({}, "", "/dashboard");
+        }
+
+        const token = getAccessToken();
+        if (!token) {
+          window.location.href = "/";
+          return;
+        }
+
+        const headers = {
+          Authorization: `Bearer ${token}`,
+          "X-API-Version": "1",
+        };
+
+        const userRes = await axios.get(`${API}/auth/me`, { headers });
+        setUser(userRes.data.data);
+
+        const statsRes = await axios.get(`${API}/profiles?limit=1`, {
+          headers,
         });
-      })
-      .then((r) => {
-        setStats(r.data);
-        setLoading(false);
-      })
-      .catch(() => {
+        setStats({ total: statsRes.data.total });
+      } catch {
         window.location.href = "/";
-      });
-  }, []);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [searchParams]);
 
   const handleLogout = () => {
+    const token = getAccessToken();
     axios
-      .post(`${API}/auth/logout`, {}, { withCredentials: true })
+      .post(
+        `${API}/auth/logout`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      )
       .finally(() => {
+        sessionStorage.clear();
         window.location.href = "/";
       });
   };
@@ -54,7 +118,6 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: "100vh", padding: "24px" }}>
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -113,7 +176,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats */}
       <div
         style={{
           display: "grid",
@@ -125,10 +187,10 @@ export default function Dashboard() {
         {[
           {
             label: "Total Profiles",
-            value: stats?.total || 0,
+            value: stats?.total ?? 0,
             color: "#00d4aa",
           },
-          { label: "Your Role", value: user?.role || "-", color: "#7c7cff" },
+          { label: "Your Role", value: user?.role ?? "-", color: "#7c7cff" },
           { label: "Status", value: "Active", color: "#00d4aa" },
         ].map((stat) => (
           <div
@@ -163,7 +225,6 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Navigation */}
       <div
         style={{
           display: "grid",
@@ -199,14 +260,7 @@ export default function Dashboard() {
                 borderRadius: "12px",
                 border: "1px solid #2a2a4a",
                 cursor: "pointer",
-                transition: "border-color 0.2s",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.borderColor = "#7c7cff")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.borderColor = "#2a2a4a")
-              }
             >
               <div style={{ fontSize: "32px", marginBottom: "12px" }}>
                 {item.icon}
