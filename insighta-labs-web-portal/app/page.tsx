@@ -1,6 +1,6 @@
 export default function Home() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
-  const loginUrl = apiUrl.replace("/api", "") + "/api/auth/github";
+  const loginUrl = `${apiUrl}/auth/github`;
 
   return (
     <main
@@ -34,16 +34,9 @@ export default function Home() {
         >
           Insighta Labs+
         </h1>
-        <p
-          style={{
-            color: "#8888aa",
-            marginBottom: "32px",
-            fontSize: "16px",
-          }}
-        >
+        <p style={{ color: "#8888aa", marginBottom: "32px", fontSize: "16px" }}>
           Demographic Intelligence Platform
         </p>
-
         <a
           href={loginUrl}
           style={{
@@ -63,14 +56,7 @@ export default function Home() {
           <span>&#128279;</span>
           Continue with GitHub
         </a>
-
-        <p
-          style={{
-            color: "#555577",
-            fontSize: "12px",
-            marginTop: "24px",
-          }}
-        >
+        <p style={{ color: "#555577", fontSize: "12px", marginTop: "24px" }}>
           Secure login powered by GitHub OAuth
         </p>
       </div>

@@ -1,41 +1,28 @@
 "use client";
 import { useEffect, useState } from "react";
-import axios from "axios";
 import Link from "next/link";
-import { getAuthHeaders, isLoggedIn } from "../lib/auth";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  avatar_url: string;
-  role: string;
-}
+import { getUser, User } from "../lib/auth";
 
 export default function Account() {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      if (!isLoggedIn()) {
-        window.location.href = "/";
-        return;
-      }
       try {
-        const res = await axios.get(`${API}/auth/me`, {
-          headers: getAuthHeaders(),
-        });
-        setUser(res.data.data);
+        const userData = await getUser();
+        if (!userData) throw new Error();
+        setUser(userData);
       } catch {
         window.location.href = "/";
+      } finally {
+        setLoading(false);
       }
     };
     load();
   }, []);
 
-  if (!user) {
+  if (loading) {
     return (
       <div
         style={{
@@ -49,6 +36,8 @@ export default function Account() {
       </div>
     );
   }
+
+  if (!user) return null;
 
   return (
     <div
@@ -72,7 +61,6 @@ export default function Account() {
           ← Dashboard
         </Link>
       </div>
-
       <div
         style={{
           background: "#1e1e3a",
@@ -135,7 +123,6 @@ export default function Account() {
             </span>
           </div>
         </div>
-
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {[
             { label: "User ID", value: user.id },

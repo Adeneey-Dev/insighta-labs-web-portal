@@ -1,10 +1,8 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import axios from "axios";
 import Link from "next/link";
-import { getAuthHeaders, isLoggedIn } from "../lib/auth";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { apiCall } from "../lib/api";
+import { isLoggedIn } from "../lib/auth";
 
 interface Profile {
   id: string;
@@ -30,13 +28,13 @@ export default function Profiles() {
 
   const fetchProfiles = useCallback(
     async (p = 1) => {
-      if (!isLoggedIn()) {
+      if (!(await isLoggedIn())) {
         window.location.href = "/";
         return;
       }
       setLoading(true);
       try {
-        const params: Record<string, string | number> = {
+        const params: Record<string, any> = {
           page: p,
           limit: 10,
           sort_by: sortBy,
@@ -46,16 +44,14 @@ export default function Profiles() {
         if (country) params.country_id = country.toUpperCase();
         if (ageGroup) params.age_group = ageGroup;
 
-        const res = await axios.get(`${API}/profiles`, {
-          params,
-          headers: getAuthHeaders(),
-        });
-
-        setProfiles(res.data.data);
-        setTotal(res.data.total);
-        setTotalPages(res.data.total_pages);
+        const query = new URLSearchParams(params).toString();
+        const res = await apiCall<any>(`/profiles?${query}`);
+        setProfiles(res.data);
+        setTotal(res.total);
+        setTotalPages(res.total_pages);
         setPage(p);
-      } catch {
+      } catch (err) {
+        console.error(err);
         window.location.href = "/";
       } finally {
         setLoading(false);
@@ -80,6 +76,7 @@ export default function Profiles() {
 
   return (
     <div style={{ minHeight: "100vh", padding: "24px" }}>
+      {/* header */}
       <div
         style={{
           display: "flex",
@@ -97,6 +94,7 @@ export default function Profiles() {
         </Link>
       </div>
 
+      {/* filters */}
       <div
         style={{
           background: "#1e1e3a",
@@ -119,14 +117,12 @@ export default function Profiles() {
           <option value="male">Male</option>
           <option value="female">Female</option>
         </select>
-
         <input
           value={country}
           onChange={(e) => setCountry(e.target.value)}
           placeholder="Country (e.g. NG)"
           style={{ ...inputStyle, width: "140px" }}
         />
-
         <select
           value={ageGroup}
           onChange={(e) => setAgeGroup(e.target.value)}
@@ -138,7 +134,6 @@ export default function Profiles() {
           <option value="adult">Adult</option>
           <option value="senior">Senior</option>
         </select>
-
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
@@ -148,7 +143,6 @@ export default function Profiles() {
           <option value="age">Sort: Age</option>
           <option value="gender_probability">Sort: Gender Prob</option>
         </select>
-
         <select
           value={order}
           onChange={(e) => setOrder(e.target.value)}
@@ -157,7 +151,6 @@ export default function Profiles() {
           <option value="desc">Desc</option>
           <option value="asc">Asc</option>
         </select>
-
         <button
           onClick={() => fetchProfiles(1)}
           style={{
@@ -167,13 +160,10 @@ export default function Profiles() {
             padding: "8px 20px",
             borderRadius: "8px",
             cursor: "pointer",
-            fontSize: "14px",
-            fontWeight: "600",
           }}
         >
           Filter
         </button>
-
         <button
           onClick={() => {
             setGender("");
@@ -189,7 +179,6 @@ export default function Profiles() {
             padding: "8px 20px",
             borderRadius: "8px",
             cursor: "pointer",
-            fontSize: "14px",
           }}
         >
           Reset
@@ -227,7 +216,6 @@ export default function Profiles() {
                       textAlign: "left",
                       color: "#8888aa",
                       fontSize: "13px",
-                      fontWeight: "600",
                       borderBottom: "1px solid #2a2a4a",
                     }}
                   >
@@ -240,9 +228,7 @@ export default function Profiles() {
               {profiles.map((p, i) => (
                 <tr
                   key={p.id}
-                  style={{
-                    background: i % 2 === 0 ? "#1e1e3a" : "#1a1a36",
-                  }}
+                  style={{ background: i % 2 === 0 ? "#1e1e3a" : "#1a1a36" }}
                 >
                   <td
                     style={{
@@ -320,7 +306,6 @@ export default function Profiles() {
               padding: "8px 16px",
               borderRadius: "8px",
               cursor: page === 1 ? "not-allowed" : "pointer",
-              fontSize: "14px",
             }}
           >
             Previous
@@ -335,7 +320,6 @@ export default function Profiles() {
               padding: "8px 16px",
               borderRadius: "8px",
               cursor: page === totalPages ? "not-allowed" : "pointer",
-              fontSize: "14px",
             }}
           >
             Next

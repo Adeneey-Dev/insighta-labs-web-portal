@@ -1,24 +1,32 @@
-export function getAccessToken(): string {
-  if (typeof window !== "undefined") {
-    return sessionStorage.getItem("access_token") || "";
+// lib/auth.ts
+import { apiCall } from "./api";
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  avatar_url: string;
+  role: string;
+}
+
+export async function getUser(): Promise<User | null> {
+  try {
+    const res = await apiCall<{ data: User }>("/auth/me");
+    return res.data;
+  } catch {
+    return null;
   }
-  return "";
 }
 
-export function getAuthHeaders(): Record<string, string> {
-  const token = getAccessToken();
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    "X-API-Version": "1",
-  };
+export async function isLoggedIn(): Promise<boolean> {
+  const user = await getUser();
+  return !!user;
 }
 
-export function isLoggedIn(): boolean {
-  return !!getAccessToken();
-}
-
-export function logout(): void {
+export async function logout(): Promise<void> {
+  await apiCall("/auth/logout", { method: "POST" });
+  // Force redirect to home
   if (typeof window !== "undefined") {
-    sessionStorage.clear();
+    window.location.href = "/";
   }
 }

@@ -1,81 +1,27 @@
 "use client";
 import { useEffect, useState } from "react";
-import axios from "axios";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  avatar_url: string;
-  role: string;
-}
+import { getUser, logout, User } from "../lib/auth";
+import { apiCall } from "../lib/api";
 
 interface Stats {
   total: number;
-}
-
-// Token storage helpers
-function saveTokens(access: string, refresh: string) {
-  if (typeof window !== "undefined") {
-    sessionStorage.setItem("access_token", access);
-    sessionStorage.setItem("refresh_token", refresh);
-  }
-}
-
-function getAccessToken(): string {
-  if (typeof window !== "undefined") {
-    return sessionStorage.getItem("access_token") || "";
-  }
-  return "";
-}
-
-export function getAuthHeaders() {
-  const token = getAccessToken();
-  return token
-    ? { Authorization: `Bearer ${token}`, "X-API-Version": "1" }
-    : { "X-API-Version": "1" };
 }
 
 export default function DashboardClient() {
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     const load = async () => {
       try {
-        // Check if tokens came from OAuth redirect
-        const tokensParam = searchParams.get("tokens");
-        if (tokensParam) {
-          const parsed = JSON.parse(decodeURIComponent(tokensParam));
-          saveTokens(parsed.access_token, parsed.refresh_token);
-          // Clean URL
-          window.history.replaceState({}, "", "/dashboard");
-        }
+        const userData = await getUser();
+        if (!userData) throw new Error("Not authenticated");
+        setUser(userData);
 
-        const token = getAccessToken();
-        if (!token) {
-          window.location.href = "/";
-          return;
-        }
-
-        const headers = {
-          Authorization: `Bearer ${token}`,
-          "X-API-Version": "1",
-        };
-
-        const userRes = await axios.get(`${API}/auth/me`, { headers });
-        setUser(userRes.data.data);
-
-        const statsRes = await axios.get(`${API}/profiles?limit=1`, {
-          headers,
-        });
-        setStats({ total: statsRes.data.total });
+        const statsRes = await apiCall<{ total: number }>("/profiles?limit=1");
+        setStats({ total: statsRes.total });
       } catch {
         window.location.href = "/";
       } finally {
@@ -83,22 +29,10 @@ export default function DashboardClient() {
       }
     };
     load();
-  }, [searchParams]);
+  }, []);
 
-  const handleLogout = () => {
-    const token = getAccessToken();
-    axios
-      .post(
-        `${API}/auth/logout`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      )
-      .finally(() => {
-        sessionStorage.clear();
-        window.location.href = "/";
-      });
+  const handleLogout = async () => {
+    await logout();
   };
 
   if (loading) {

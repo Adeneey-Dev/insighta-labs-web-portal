@@ -1,10 +1,8 @@
 "use client";
 import { useState } from "react";
-import axios from "axios";
 import Link from "next/link";
-import { getAuthHeaders, isLoggedIn } from "../lib/auth";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { apiCall } from "../lib/api";
+import { isLoggedIn } from "../lib/auth";
 
 interface Profile {
   id: string;
@@ -32,7 +30,7 @@ export default function Search() {
   ];
 
   const search = async (q?: string) => {
-    if (!isLoggedIn()) {
+    if (!(await isLoggedIn())) {
       window.location.href = "/";
       return;
     }
@@ -42,18 +40,13 @@ export default function Search() {
     setError("");
     setSearched(true);
     try {
-      const res = await axios.get(`${API}/profiles/search`, {
-        params: { q: searchQuery },
-        headers: getAuthHeaders(),
-      });
-      setResults(res.data.data ?? []);
-      setTotal(res.data.total ?? 0);
-    } catch (e) {
-      if (axios.isAxiosError(e)) {
-        setError(e.response?.data?.message ?? "Search failed");
-      } else {
-        setError("Search failed");
-      }
+      const res = await apiCall<any>(
+        `/profiles/search?q=${encodeURIComponent(searchQuery)}`,
+      );
+      setResults(res.data ?? []);
+      setTotal(res.total ?? 0);
+    } catch (err: any) {
+      setError(err.message || "Search failed");
       setResults([]);
     } finally {
       setLoading(false);
@@ -103,7 +96,6 @@ export default function Search() {
             color: "white",
             padding: "12px 16px",
             borderRadius: "10px",
-            fontSize: "16px",
             outline: "none",
           }}
         />
@@ -116,7 +108,6 @@ export default function Search() {
             padding: "12px 24px",
             borderRadius: "10px",
             cursor: "pointer",
-            fontSize: "16px",
             fontWeight: "600",
           }}
         >
@@ -166,27 +157,20 @@ export default function Search() {
           {error}
         </div>
       )}
-
       {loading && (
         <p style={{ color: "#8888aa", textAlign: "center", padding: "40px" }}>
           Searching...
         </p>
       )}
-
       {!loading && searched && results.length === 0 && !error && (
         <p style={{ color: "#8888aa", textAlign: "center", padding: "40px" }}>
           No results found
         </p>
       )}
-
       {!loading && results.length > 0 && (
         <>
           <p
-            style={{
-              color: "#8888aa",
-              fontSize: "14px",
-              marginBottom: "16px",
-            }}
+            style={{ color: "#8888aa", fontSize: "14px", marginBottom: "16px" }}
           >
             Found {total} results
           </p>
@@ -210,7 +194,6 @@ export default function Search() {
                           textAlign: "left",
                           color: "#8888aa",
                           fontSize: "13px",
-                          fontWeight: "600",
                           borderBottom: "1px solid #2a2a4a",
                         }}
                       >
@@ -224,9 +207,7 @@ export default function Search() {
                 {results.map((p, i) => (
                   <tr
                     key={p.id}
-                    style={{
-                      background: i % 2 === 0 ? "#1e1e3a" : "#1a1a36",
-                    }}
+                    style={{ background: i % 2 === 0 ? "#1e1e3a" : "#1a1a36" }}
                   >
                     <td
                       style={{
